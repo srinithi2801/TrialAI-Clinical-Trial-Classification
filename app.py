@@ -3,6 +3,7 @@ import streamlit as st
 import joblib
 import pandas as pd
 from datetime import datetime
+from text_preprocessing import preprocess_text
 
 # ==========================================
 # 1. PAGE CONFIGURATION
@@ -38,7 +39,6 @@ if "prediction_history" not in st.session_state:
 
 st.markdown("""
 <style>
-
 [data-testid="stAppViewContainer"] {
     background-color: #F7FAFC;
     color: #17324D;
@@ -100,7 +100,6 @@ st.markdown("""
     border-radius: 14px;
     border-left: 5px solid #0D9488;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -109,13 +108,10 @@ st.markdown("""
 # ==========================================
 
 with st.sidebar:
-
     st.title("🧬 TrialAI")
-
     st.caption("Clinical Research Intelligence")
 
     st.divider()
-
     st.subheader("About the Project")
 
     st.write(
@@ -125,7 +121,6 @@ with st.sidebar:
     )
 
     st.divider()
-
     st.subheader("Model Information")
 
     st.write("**Algorithm:** Logistic Regression")
@@ -134,7 +129,6 @@ with st.sidebar:
     st.write("**Evaluated Accuracy:** 94.48%")
 
     st.divider()
-
     st.subheader("Technology Stack")
 
     st.write("🐍 Python")
@@ -144,7 +138,6 @@ with st.sidebar:
     st.write("🌐 Streamlit")
 
     st.divider()
-
     st.caption("Academic Data Science Project")
 
 # ==========================================
@@ -179,13 +172,10 @@ diseases = [
 ]
 
 for start in range(0, len(diseases), 4):
-
     cols = st.columns(4)
 
     for i, disease in enumerate(diseases[start:start + 4]):
-
         with cols[i]:
-
             st.markdown(
                 f"""
                 <div class="metric-card">
@@ -218,101 +208,94 @@ if st.button(
 
     if clinical_text.strip():
 
-        # Predict disease category
-        prediction = model.predict([clinical_text])[0]
+        # Apply the same preprocessing used during training
+        processed_text = preprocess_text(clinical_text)
 
-        # Calculate prediction probabilities
-        probabilities = model.predict_proba([clinical_text])[0]
+        if not processed_text.strip():
+            st.warning("Please enter meaningful clinical trial text.")
+        else:
+            # Predict disease category
+            prediction = model.predict([processed_text])[0]
 
-        confidence = max(probabilities) * 100
+            # Calculate prediction probabilities
+            probabilities = model.predict_proba([processed_text])[0]
 
-        # Save prediction history
-        st.session_state.prediction_history.append({
-            "Time": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
-            "Disease Category": prediction.title(),
-            "Confidence (%)": round(confidence, 2)
-        })
+            confidence = max(probabilities) * 100
 
-        st.success("Prediction completed successfully!")
+            # Save prediction history
+            st.session_state.prediction_history.append({
+                "Time": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
+                "Disease Category": prediction.title(),
+                "Confidence (%)": round(confidence, 2)
+            })
 
-        # ==================================
-        # 9. PREDICTION RESULT CARD
-        # ==================================
+            st.success("Prediction completed successfully!")
 
-        st.subheader("Prediction Result")
+            # Prediction result
+            st.subheader("Prediction Result")
 
-        st.markdown(
-            f"""
-            <div class="result-card">
+            st.markdown(
+                f"""
+                <div class="result-card">
+                    <p style="color:#047857;">
+                        Predicted Disease Category
+                    </p>
+                    <h2 style="color:#064E3B;">
+                        {prediction.title()}
+                    </h2>
+                    <h3 style="color:#0F766E;">
+                        Confidence: {confidence:.2f}%
+                    </h3>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-                <p style="color:#047857;">
-                    Predicted Disease Category
-                </p>
+            # Probability chart
+            st.subheader("Disease Category Probabilities")
 
-                <h2 style="color:#064E3B;">
-                    {prediction.title()}
-                </h2>
+            probability_df = pd.DataFrame({
+                "Disease Category": model.classes_,
+                "Probability (%)": probabilities * 100
+            })
 
-                <h3 style="color:#0F766E;">
-                    Confidence: {confidence:.2f}%
-                </h3>
+            probability_df = probability_df.sort_values(
+                "Probability (%)",
+                ascending=False
+            )
 
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+            st.bar_chart(
+                probability_df.set_index("Disease Category")[
+                    "Probability (%)"
+                ],
+                horizontal=True
+            )
 
-        # ==================================
-        # 10. PROBABILITY CHART
-        # ==================================
-
-        st.subheader("Disease Category Probabilities")
-
-        probability_df = pd.DataFrame({
-            "Disease Category": model.classes_,
-            "Probability (%)": probabilities * 100
-        })
-
-        probability_df = probability_df.sort_values(
-            "Probability (%)",
-            ascending=False
-        )
-
-        st.bar_chart(
-            probability_df.set_index("Disease Category")[
-                "Probability (%)"
-            ],
-            horizontal=True
-        )
-
-        st.dataframe(
-            probability_df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Probability (%)": st.column_config.NumberColumn(
-                    "Probability (%)",
-                    format="%.2f%%"
-                )
-            }
-        )
+            st.dataframe(
+                probability_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Probability (%)": st.column_config.NumberColumn(
+                        "Probability (%)",
+                        format="%.2f%%"
+                    )
+                }
+            )
 
     else:
-
         st.warning("Please enter a clinical trial summary.")
 
 # ==========================================
-# 11. PREDICTION HISTORY
+# 9. PREDICTION HISTORY
 # ==========================================
 
 st.divider()
-
 st.subheader("📋 Prediction History")
 
 history = st.session_state.prediction_history
 
 if history:
-
     history_df = pd.DataFrame(history)
 
     st.dataframe(
@@ -322,19 +305,16 @@ if history:
     )
 
     if st.button("Clear Prediction History"):
-
         st.session_state.prediction_history = []
-
         st.rerun()
 
 else:
-
     st.info(
         "No predictions have been made in this session yet."
     )
 
 # ==========================================
-# 12. FOOTER
+# 10. FOOTER
 # ==========================================
 
 st.divider()
@@ -343,4 +323,3 @@ st.caption(
     "TrialAI | Academic Machine Learning Demonstration | "
     "Predictions are not medical diagnoses."
 )
-
