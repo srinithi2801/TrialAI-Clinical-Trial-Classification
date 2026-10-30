@@ -151,18 +151,15 @@ with st.sidebar:
 # 6. MAIN HEADER
 # ==========================================
 
-st.markdown("""
+st.html("""
 <div class="hero">
-
     <h1>🧬 Clinical Trial Disease Classifier</h1>
-
     <p>
         Intelligent disease-category prediction using
         Natural Language Processing and Machine Learning.
     </p>
-
 </div>
-""", unsafe_allow_html=True)
+""")
 
 # ==========================================
 # 7. DISEASE CATEGORY CARDS
